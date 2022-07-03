@@ -8,6 +8,7 @@ type WebSocketReq struct {
 }
 
 type WebSocketRep struct {
-	Result string `json:"result"`
-	Id     int    `json:"id"`
+	Exception error  `json:"exception"`
+	Message   string `json:"message"`
+	Id        int    `json:"id"`
 }

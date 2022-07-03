@@ -82,42 +82,52 @@ func driver(c *gin.Context) {
 		log.Println("wda not health!")
 		return
 	}
+	log.Println("Driver is ready.")
 	defer driver.Close()
 
 	for {
-		_, message, err := ws.ReadMessage()
-		if err != nil {
+		_, message, errR := ws.ReadMessage()
+		if errR != nil {
+			log.Println("Read Msg failed!")
+			log.Println(errR)
 			break
 		}
 		s := &entity.WebSocketReq{}
 		json.Unmarshal(message, s)
 		log.Println(fmt.Sprintf("method:%s,params:%s", s.Method, s.Params))
-		if s.Version == "1.4.2" {
-			wr := &entity.WebSocketRep{}
-			switch s.Method {
-			case "source":
-				var r string
-				r, err = driver.Source()
-				if err != nil {
-					log.Println(err)
-				}
-				wr.Result = r
-			//case "send":
-			//	driver
-			case "tap":
-				err = driver.Tap(s.Params[0].(int), s.Params[1].(int))
-				if err != nil {
-					log.Println(err)
-				}
-				wr.Result = "done"
-			case "swipe":
-				err = driver.Swipe(s.Params[0].(int), s.Params[1].(int), s.Params[2].(int), s.Params[3].(int))
-				if err != nil {
-					log.Println(err)
-				}
-				wr.Result = "done"
+		wr := &entity.WebSocketRep{}
+		wr.Id = s.Id
+		wr.Message = "Done"
+		var hErr error
+		switch s.Method {
+		case "source":
+			var r string
+			r, hErr = driver.Source()
+			if hErr != nil {
+				handleErr(wr, hErr)
 			}
-			wr.Id = s.Id
+			wr.Message = r
+		case "send":
+			hErr = driver.SendKeys(s.Params[0].(string))
+			if hErr != nil {
+				handleErr(wr, hErr)
+			}
+		case "tap":
+			hErr = driver.Tap(s.Params[0].(int), s.Params[1].(int))
+			if hErr != nil {
+				handleErr(wr, hErr)
+			}
+		case "swipe":
+			hErr = driver.Swipe(s.Params[0].(int), s.Params[1].(int), s.Params[2].(int), s.Params[3].(int))
+			if hErr != nil {
+				handleErr(wr, hErr)
+			}
+		case "longPress":
 		}
 	}
+}
+
+func handleErr(rep *entity.WebSocketRep, err error) {
+	rep.Exception = err
+	log.Println(err)
 }
